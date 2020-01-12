@@ -1,0 +1,363 @@
+React Tutorial
+
+＜概要＞
+
+1	Square は Reactコンポーネント(部品)のクラス。
+	Component は props と呼ばれるパラメータを受け取り、renderメソッドを通じて、表示するレビューの階層構造を返す。
+
+
+29	Board の renderSquareメソッド内で、propsとしてvalueという名前の値をSquareに渡す。
+		↓
+	Square の renderメソッドで渡された値を表示するように変更。
+		{this.props.value}
+
+	Board(盤面) のvalueが Square(正方形のマス目)に渡され、マス目にそれぞれ値が入る。
+
+
+
+○ Square コンポーネントがクリックされた場合に”X”と表示されるようにする。
+
+	Squareコンポーネントの render()関数から返されているボタンタグを変更する
+		変更前：<button className="square">　 {this.props.value}　</button>
+		
+		変更後：<button className=“square” onClick = {function() { alert(‘click’); }}>  {this.props.value}　</button>
+
+				　→Square(正方形のマス目)をクリックするとアラートが表示されるようになる。
+
+
+	アロー関数構文を使用したイベントハンドラの記述
+		変更前：<button className=“square” onClick = {function() { alert(‘click’); }}>  {this.props.value}　</button>
+		
+		変更後：<button className=“square” onClick = { () => alert(‘click’) }>  {this.props.value}　</button>
+
+			※onClickプロパティに渡しているのは関数であることに注意する。
+			　()=> を書き忘れるとコンポーネントが再レンダーするたびにアラートが表示されてしまう。
+
+
+	Squeareコンポーネントに自分がクリックされたことを「覚えさせ」て、“X” マークでマスを埋めるようにする。
+		コンポーネントが何かを覚えるためには「state」というものを使用する。
+
+２		Reactコンポーネントは constructor内で this.state を設定することで状態を維持する(覚える)ことができるようになる。
+　　　　　現在の Squareの状態を this.stateに保存して、マス目がクリックされた時にそれを変更するようにする。
+
+			・クラスにコンストラクターを追加して stateを初期化する
+				class Square extends React.Component {
+  										constructor(props) {
+    													super(props);　
+    													this.state = {
+      															value: null,
+    													};
+ 										 }
+
+					※JavaScriptのクラスでは、サブクラスのコンストラクタを定義する際は常に super を呼ぶ必要がある。
+					　constructor を持つ React のクラスコンポーネントでは、すべてコンストラクタを super(props) の呼び出しから始める。
+
+9			・Square の render メソッドを書き換えて、クリックされた時に state の現在値を表示するようにする。
+
+				・<button>タグ内の this.props.value を this.state.value に置き換える。
+					Square の renderメソッドで constructorメソッドから渡された値を表示するように変更。
+						constructor		this.state = { value: null, }; 									←コイツをrenderに渡す
+						render			{this.state.value}
+
+13				・onClick={...} というイベントハンドラを onClick={() => this.setState({value: 'X'})} に書き換える。
+					変更前：<button className="square" onClick={() => alert('click')}>  {this.props.value}  </button>
+					変更後：<button className="square" onClick={() => this.setState({value: 'X'})}>  {this.state.value}  </button>
+
+					※state変更時の注意点
+						Reactでは、「stateの値は直接代入することで値を変更してはいけない」というルールがある。
+						値を変更したい場合は上記のようにsetStateを使用する。
+
+
+			Square の render メソッド内に書かれた onClick ハンドラ内で this.setState を呼び出すことで、React に <button> がクリックされたら常に再レンダーするよう伝えることができる。
+			データ更新のあと、この Square の this.state.value は 'X' になっているため、盤面に X と表示されることになる。どのマス目をクリックしても X が出る。
+
+			setState をコンポーネント内で呼び出すと、React はその内部の子コンポーネントも自動的に更新する。
+
+
+
+＜ゲームを完成させる＞
+	ここまでで三目並べゲームの基本的な部品が揃いました。
+	完全に動作するゲームにするためには、盤面に “X” と “O” を交互に置けるようにすることと、どちらのプレーヤが勝利したか判定できるようにすることが必要です。
+
+
+○ 盤面に “X” と “O” を交互に置けるようにする
+
+	Stateのリフトアップ
+
+		・どちらが勝利したかチェックするために、9 個のマス目の値を 1 カ所で管理する。
+			× Board が各 Square に、現時点の state がどうなっているか問い合わせる。
+				→ コードが分かりにくく、より壊れやすく、リファクタリングしづらいものになるので非推奨。
+
+			○ ゲームの状態を各 Square の代わりに親の Board コンポーネントで保持する。
+				→ Board コンポーネントはそれぞれの Square に props を渡すことで、何を表示すべきかを伝えられる。
+
+
+		・ state を親コンポーネントにリフトアップ (lift up) する。
+			複数の子要素からデータを集めたい、2つの子のコンポーネントに互いにやり取りさせたい場合は、
+			代わりに親コンポーネント内で共有の state を宣言する必要がある。
+
+			親コンポーネントは props を使用することで子に情報を返すことができる。
+			これにより、子コンポーネントが兄弟同士、親との間で常に同期されるようになる。
+
+
+			・Board にコンストラクタを追加し、初期 state に 9 個の null が 9 個のマス目に対応する 9 個の null 値をセットする。
+				class Board extends React.Component {
+  					constructor(props) {
+    						super(props);
+    						this.state = {
+      									squares: Array(9).fill(null),
+   						 };
+ 					 }
+
+
+			・Board を書き換えて、それぞれ個別の Square に現在の値（'X'、'O' 、’null’）を伝えるようにする。
+			　squares という配列は上記の Board のコンストラクタで定義しているため、Board の renderSquare がそこから値を読み込むように書き換える。
+
+				  	renderSquare(i) {
+    						return <Square value={ this.state.squares[ i ] }  />;
+					  }
+
+
+			これでそれぞれのSquareが value プロパティ（'X'、'O' 、’null’）を受け取るようになる。
+
+
+		・マス目がクリックされた時の挙動を変更する。
+			現在、どのマスに何が入っているかを管理しているのは Board。
+			Square が Board の state を更新できるようにする必要がある。
+　　　　　　　　※state は定義しているコンポーネント内でプライベートなもののため、Square から Board の state を直接書き換えることはできない。
+
+			・Boardから Squareに関数を渡すとして、マスがクリックされた時に Squareにその関数を呼んでもらうようにする。
+
+					renderSquare(i) {
+    						return (
+   						 	<Square 
+								value={this.state.squares[i]}
+        								onClick={() => this.handleClick(i)}
+     							 />
+  						  );
+					}
+
+
+			・現在、Board から Square には props として以下2つの値を渡している。
+					value		Square の renderメソッドで渡された値を表示するように
+					onClick		マス目がクリックされた時にSquareが呼び出すためのもの。
+
+			　	Squareに以下の変更を加える。
+					・Square の renderメソッド内の this.state.value を this.props.value に書き換える。
+					・Square の renderメソッド内の this.setState() を this.props.onClick() に書き換える。
+					・Square はもはやゲームの状態を管理していないため、Square の constructor を削除する。
+
+			・ここまでのおさらい（Squareがクリックされると、Boardから渡されたonClick関数がコールされる。）
+				①組み込みのDOMコンポーネントである<button>にonClickプロパティが設定されているため、
+				　Reactがクリックに対するイベントリスナを設定する。
+
+				② ボタンがクリックされると、React は Square の render()メソッド内に定義されている onClick のイベントハンドラをコールする。
+				
+				③このイベントのハンドラが this.props.onClick() をコールする。
+				　Square の onClickプロパティはBoardから渡されているものである。
+
+				④Board は Square に  onClick{ () => this.handleClick(i) } を渡していたので、
+				　Square はクリックされた時に this.handleClick(i)を呼び出す。
+
+				⑤まだ handleClick() を定義していないため、コードがクラッシュする。
+				　Squareをクリックすると、”this.handleClick is not a function”といったエラー画面が表示される。
+
+
+			・まだhandClickを定義していないため、マス目をクリックしようとするとエラーが出る。
+				　→ handleClickをBoardクラスに加える。
+
+			・現在の状態は Squareコンポーネントではなく Boardコンポーネント内で保存されている。
+			　→Board の state が変更になると、個々の Squareコンポーネントも自動的に再レンダーされる。
+
+			　全てのマス目の状態を Boardコンポーネント内で保持するようにしたことで、この後でどちらが勝者か判定できるようになる。
+
+
+			・現在の状態
+				Square
+					→stateを管理しないため、Boardコンポーネントから値を受け取って、クリックされた時はそのことをBoardコンポーネントに伝えるのみ。
+					→Square は (Boardに) 制御されたコンポーネントになった。
+
+
+	イミュータビリティの重要性
+
+		handleClick内で square を直接変更する代わりに、.slice()メソッドを使って Square配列のコピーを作成して変更することが勧められている。
+
+			  handleClick(i) {
+   				const squares = this.state.squares.slice();			←.slice()メソッドを使って Square配列のコピーを作成
+   				squares[i] = 'X';								←’X’を直接変更しない
+    				this.setState({squares: squares});
+			  }
+
+		イミュータビリティ(不変性)がなぜ重要なのか？
+
+		・変化するデータに対してのアプローチは2種類ある。
+			①データの値を直接いじってデータをミューテート(書き換え)する。
+			②望む変更を加えた新しいデータのコピーで古いデータを置き換える。
+
+		・複雑な機能が簡単に実装できる
+			直接的なデータのミューテート(書き換え)を避けることで、ゲームの以前の履歴をそのまま保って後で再利用することができる。
+
+		・変更の検出
+			ミュータブルなオブジェクト
+				中身が直接書き換えられるため、変更があったかどうかの検出が困難。
+				→以前のコピーと比較してオブジェクトツリーの全体を走査する必要がある。
+
+			イミュータブルなオブジェクト
+				参照しているオブジェクトが前と別のものであれば変更があったということがわかるため、変更の検出は容易。
+
+		・Reactの再レンダータイミングの決定
+			イミュータビリティの利点
+				Reactで pure component を構築しやすくなる。
+					イミュータブルなデータは変更があったかどうか簡単に分かるため、コンポーネントをいつ再レンダーすべきなのか決定しやすくなる。
+
+
+	関数コンポーネント
+
+		Reactにおける関数コンポーネント
+			renderメソッドだけを有して自分のstateを持たないコンポーネントをよりシンプルに書くための方法。
+				React.Componentを継承するクラスを定義する代わりに、popsを入力として受け取り、表示すべき内容を返す関数を定義する。
+
+
+		Squareクラスを以下の関数で書き換える
+　	
+			変更前
+				class Square extends React.Component {
+  					render() {
+    						return (
+     							 <button
+        								className="square"
+        								onClick={() => this.props.onClick()}
+      							>
+       								 {this.props.value}
+      							</button>
+    						);
+					}
+				}
+
+
+			変更後
+				function Square(props) {
+					return (
+						<button
+							className="square" 
+							onClick={props.onClick}
+						>
+      							{props.value}
+						</button>
+					);
+				}
+
+			※Squareを関数コンポーネントに変えた際、onClick = { () => this.props.onClick() }を
+			　より短い onClick = {props.onClick}に書き換え
+
+	手番の処理　
+
+	・“○”が盤面に出てこない問題を修正する。
+
+		デフォルトでは先手を”X”とする。
+		Boardのコンストラクタで state の初期値を変えることでこのデフォルト値を変更することが可能。
+
+			class Board extends React.Component {
+				constructor(props) {
+					super(props);
+					this.state = {
+      						squares: Array(9).fill(null),
+      						xIsNext: ture,
+					 };
+				}
+		
+
+	・プレーヤーが着手するたびに、どちらのプレーヤの手番なのか決める
+
+		xIsNext(真偽値)が反転されることでゲームの状態が保存される。
+		Board の handleClick関数を書き換えて xIsNextの値を反転させるようにする。
+
+		・’X’側と’0’側を交互に着手できるようにする。
+
+			handleClick(i) {
+				const squares = this.state.squares.slice();
+				squares[i] = this.state.xIsNext ? ‘X’ : ‘0’;
+				square[I] = ‘X’;
+				this.setState({ 
+					squares: squares,
+					xIsNext: !this.state.xIsNext,
+				 });
+			}
+
+		・どちらのプレーヤの手番なのか表示する。
+
+			render() {
+				const status = ’ Next player: ’ + (this.state.xIsNext ? ‘X’ : ‘0’ );
+				
+				return(
+
+
+	ゲーム勝者の判定
+
+		・ゲームが決着して次の手番がなくなった時に表示する
+
+			function calculateWinner(squares) {
+				const lines = [
+    					[0, 1, 2],
+  					[3, 4, 5],
+    					[6, 7, 8],
+    					[0, 3, 6],
+    					[1, 4, 7],
+    					[2, 5, 8],
+    					[0, 4, 8],
+    					[2, 4, 6],
+  				];
+  				for (let i = 0; i < lines.length; i++) {
+   　 　　　　　　　　　	const [a, b, c] = lines[i];
+    					if (squares[a] && squares[a] === squares[b] && squares[a] === 
+			squares[c]) {
+      					return squares[a];
+   					 }
+  				}
+				  return null;
+			}
+			
+
+			9つのSquareの配列が与えられると、この関数には勝者がいるか適切に確認し、
+			‘X’ , ’0’ , ’null’のいずれかを返す。
+
+
+		・いずれかのプレーヤが勝利したかどうか判定する。
+
+			Board の render関数内で calculateWinmer(squares) を呼び出して、いずれかのプレーヤが勝利したかどうか判定する。
+			決着がついた場合は”Winner:X”もしくは”Winner:0”のようなテキストを表示するようにする。
+
+			Board の render関数の status宣言を以下のコードで書き換える。
+			
+				render() {
+					const winner = calculateWinner(this.state.squares);
+    					let status;
+    					if (winner) {
+      						status = 'Winner: ' + winner;
+    					} else {
+      						status = 'Next player: ' + (this.state.xIsNext ? 'X' : 'O');
+    					} 
+
+
+			Board の handleClickを書き換えて、ゲームの決着が既についている場合やクリックされたマス目が既に埋まっている場合に早期にreturnする。
+
+					handleClick(i) {
+    						const squares = this.state.squares.slice();
+    						if (calculateWinner(squares) || squares[i]) {
+      							return;
+    						}
+    						squares[i] = this.state.xIsNext ? 'X' : 'O';
+    						this.setState({
+      							squares: squares,
+      							xIsNext: !this.state.xIsNext,
+    						});
+  					}
+
+
+
+
+
+
+
+
+	
